@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrueCheck QR Code</title>
+</head>
+
+<body style="font-family: Arial; text-align: center; margin: 30px;">
+
+    <h1>TrueCheck</h1>
+
+    <h2>Product QR Code</h2>
+
+    <h3>{{ product["name"] }}</h3>
+
+    <p>
+        Product ID:
+        <strong>{{ product["id"] }}</strong>
+    </p>
+
+    <img
+        src="data:image/png;base64,{{ qr }}"
+        alt="TrueCheck QR Code"
+        style="width: 280px; height: 280px;"
+    >
+
+    <p>
+        Scan this QR code to verify the product.
+    </p>
+
+    <p>
+        <strong>Verification address:</strong>
+    </p>
+
+    <p>
+        {{ verification_url }}
+    </p>
+
+    <p>
+        <a href="{{ verification_url }}">
+            Open Verification Page
+        </a>
+    </p>
+
+    <br>
+
+    <a href="/">
+        Back to TrueCheck
+    </a>
+
+</body>
+</html>

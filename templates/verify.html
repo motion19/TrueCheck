@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head>    <meta name="viewport" content="width=device-width, initial-scale=1">    <title>TrueCheck Verification</title></head>
+<body style="font-family: Arial; max-width: 800px; margin: 30px auto; padding: 20px;">
+{% if product %}
+    <h1>TrueCheck Verification</h1>
+    <h2> Product Registered</h2>
+    <p>        <strong>Product:</strong>        {{ product["name"] }}    </p>
+    <p>        <strong>Product ID:</strong>        {{ product["id"] }}    </p>
+    <p>        <strong>Batch:</strong>        {{ product["batch"] or "Not provided" }}    </p>
+    <p>        <strong>Current status:</strong>        {{ product["status"] }}    </p>
+    <hr>
+    <h2>Supply-Chain History</h2>
+    {% for event in events %}
+        <div style="padding: 10px; border-bottom: 1px solid #ddd;">
+            <strong>{{ event["event"] }}</strong>
+            <br>
+            Actor:            {{ event["actor"] }}
+            <br>
+            Time:            {{ event["created_at"] }}
+        </div>
+    {% else %}
+        <p>No history available.</p>
+    {% endfor %}
+    <hr>
+    <h2>Record a Transfer</h2>
+    <form method="POST" action="/transfer/{{ product['id'] }}">
+        <p>            <input                type="text"                name="actor"                placeholder="Your role or name"                required                style="padding: 10px; width: 90%;"            >        </p>
+        <p>            <input                type="text"                name="destination"                placeholder="Wholesaler / Retailer / Consumer"                required                style="padding: 10px; width: 90%;"            >        </p>
+        <button            type="submit"            style="padding: 10px;"        >            Record Transfer        </button>
+    </form>
+{% else %}
+    <h1> Product Not Registered</h1>
+    <p>        This product ID was not found in the TrueCheck database.    </p>
+{% endif %}
+<br>
+<a href="/">    Back to TrueCheck</a>
+</body></html>
