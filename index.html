@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrueCheck</title>
+</head>
+
+<body style="font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px;">
+
+    <h1>TrueCheck</h1>
+
+    <h2>Register a Product</h2>
+
+    <form method="POST" action="/register">
+
+        <input
+            type="text"
+            name="name"
+            placeholder="Product name"
+            required
+            style="padding: 10px; width: 60%;"
+        >
+
+        <input
+            type="text"
+            name="batch"
+            placeholder="Batch number"
+            style="padding: 10px; width: 25%;"
+        >
+
+        <button
+            type="submit"
+            style="padding: 10px;"
+        >
+            Register & Generate QR
+        </button>
+
+    </form>
+
+    <h2>Registered Products</h2>
+
+    {% for product in products %}
+
+        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0;">
+
+            <strong>{{ product["name"] }}</strong>
+
+            <p>
+                Product ID: {{ product["id"] }}
+            </p>
+
+            <p>
+                Status: {{ product["status"] }}
+            </p>
+
+            <a href="/qr/{{ product['id'] }}">
+                View QR Code
+            </a>
+
+            &nbsp; | &nbsp;
+
+            <a href="/verify/{{ product['id'] }}">
+                Verify
+            </a>
+
+        </div>
+
+    {% else %}
+
+        <p>No products registered yet.</p>
+
+    {% endfor %}
+
+</body>
+</html>
