@@ -91,9 +91,9 @@ def register_product():
         + uuid.uuid4().hex[:8].upper()
     )
 
-    name = request.form.get("name", "").strip()
-batch = request.form.get("batch", "").strip()
-barcode = request.form.get("barcode", "").strip()
+        name = request.form.get("name", "").strip()
+    batch = request.form.get("batch", "").strip()
+    barcode = request.form.get("barcode", "").strip()
 
     if not name:
         return "Product name is required.", 400
@@ -103,14 +103,16 @@ barcode = request.form.get("barcode", "").strip()
     connection.execute(
         """
         INSERT INTO products
-(id, name, batch, barcode, status, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
-(
-    product_id,
-    name,
-    batch,
-    barcode,
-    "With manufacturer",
+        (id, name, batch, barcode, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            product_id,
+            name,
+            batch,
+            barcode,
+            "With manufacturer",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
     )
 
