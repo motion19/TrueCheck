@@ -91,7 +91,7 @@ def register_product():
         + uuid.uuid4().hex[:8].upper()
     )
 
-        name = request.form.get("name", "").strip()
+    name = request.form.get("name", "").strip()
     batch = request.form.get("batch", "").strip()
     barcode = request.form.get("barcode", "").strip()
 
