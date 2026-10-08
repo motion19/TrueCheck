@@ -9,8 +9,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 DATABASE = "truecheck.db"
-NETWORK_URL = "http://10.57.168.55:5000"
-
+NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
 def get_db():
     connection = sqlite3.connect(DATABASE)
