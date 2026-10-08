@@ -24,8 +24,9 @@ def setup_database():
         CREATE TABLE IF NOT EXISTS products (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            batch TEXT,
-            status TEXT NOT NULL,
+           batch TEXT,
+barcode TEXT,
+status TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
     """)
@@ -91,7 +92,8 @@ def register_product():
     )
 
     name = request.form.get("name", "").strip()
-    batch = request.form.get("batch", "").strip()
+batch = request.form.get("batch", "").strip()
+barcode = request.form.get("barcode", "").strip()
 
     if not name:
         return "Product name is required.", 400
@@ -101,15 +103,14 @@ def register_product():
     connection.execute(
         """
         INSERT INTO products
-        (id, name, batch, status, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            product_id,
-            name,
-            batch,
-            "With manufacturer",
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+(id, name, batch, barcode, status, created_at)
+VALUES (?, ?, ?, ?, ?, ?)
+(
+    product_id,
+    name,
+    batch,
+    barcode,
+    "With manufacturer",
         )
     )
 
