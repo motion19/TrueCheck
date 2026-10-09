@@ -6,30 +6,29 @@ import io
 import base64
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(name)
 
 DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
 def get_db():
-    connection = sqlite3.connect(DATABASE)
-    connection.row_factory = sqlite3.Row
-    return connection
-
+connection = sqlite3.connect(DATABASE)
+connection.row_factory = sqlite3.Row
+return connection
 
 def setup_database():
-    connection = get_db()
+connection = get_db()
 
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            batch TEXT,
-            barcode TEXT,
-            status TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
+connection.execute("""
+    CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        batch TEXT,
+        barcode TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+""")
 
 connection.execute("""
     CREATE TABLE IF NOT EXISTS events (
@@ -56,212 +55,203 @@ if "barcode" not in columns:
 connection.commit()
 connection.close()
 
-
 def add_event(product_id, event, actor):
-    connection = get_db()
+connection = get_db()
 
-    connection.execute(
-        """
-        INSERT INTO events
-        (product_id, event, actor, created_at)
-        VALUES (?, ?, ?, ?)
-        """,
-        (
-            product_id,
-            event,
-            actor,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
+connection.execute(
+    """
+    INSERT INTO events
+    (product_id, event, actor, created_at)
+    VALUES (?, ?, ?, ?)
+    """,
+    (
+        product_id,
+        event,
+        actor,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+)
 
-    connection.commit()
-    connection.close()
-
+connection.commit()
+connection.close()
 
 @app.route("/")
 def home():
-    connection = get_db()
+connection = get_db()
 
-    products = connection.execute(
-        "SELECT * FROM products ORDER BY created_at DESC"
-    ).fetchall()
+products = connection.execute(
+    "SELECT * FROM products ORDER BY created_at DESC"
+).fetchall()
 
-    connection.close()
+connection.close()
 
-    return render_template(
-        "index.html",
-        products=products
-    )
-
+return render_template(
+    "index.html",
+    products=products
+)
 
 @app.route("/register", methods=["POST"])
 def register_product():
-    product_id = (
-        "TC-NG-"
-        + datetime.now().strftime("%Y%m%d")
-        + "-"
-        + uuid.uuid4().hex[:8].upper()
-    )
+product_id = (
+"TC-NG-"
++ datetime.now().strftime("%Y%m%d")
++ "-"
++ uuid.uuid4().hex[:8].upper()
+)
 
-    name = request.form.get("name", "").strip()
-    batch = request.form.get("batch", "").strip()
-    barcode = request.form.get("barcode", "").strip()
+name = request.form.get("name", "").strip()
+batch = request.form.get("batch", "").strip()
+barcode = request.form.get("barcode", "").strip()
 
-    if not name:
-        return "Product name is required.", 400
+if not name:
+    return "Product name is required.", 400
 
-    connection = get_db()
+connection = get_db()
 
-    connection.execute(
-        """
-        INSERT INTO products
-        (id, name, batch, barcode, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            product_id,
-            name,
-            batch,
-            barcode,
-            "With manufacturer",
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-    )
-
-    connection.commit()
-    connection.close()
-
-    add_event(
+connection.execute(
+    """
+    INSERT INTO products
+    (id, name, batch, barcode, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """,
+    (
         product_id,
-        "Product registered",
-        "Manufacturer"
+        name,
+        batch,
+        barcode,
+        "With manufacturer",
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+)
 
-    return redirect(
-        url_for(
-            "show_qr",
-            product_id=product_id
-        )
-    )
+connection.commit()
+connection.close()
 
+add_event(
+    product_id,
+    "Product registered",
+    "Manufacturer"
+)
+
+return redirect(
+    url_for("show_qr", product_id=product_id)
+)
 
 @app.route("/qr/<product_id>")
 def show_qr(product_id):
-    connection = get_db()
+connection = get_db()
 
-    product = connection.execute(
-        "SELECT * FROM products WHERE id = ?",
-        (product_id,)
-    ).fetchone()
+product = connection.execute(
+    "SELECT * FROM products WHERE id = ?",
+    (product_id,)
+).fetchone()
 
-    connection.close()
+connection.close()
 
-    if product is None:
-        return "Product not found.", 404
+if product is None:
+    return "Product not found.", 404
 
-    verification_url = (
-        NETWORK_URL
-        + "/verify/"
-        + product_id
-    )
+verification_url = (
+    NETWORK_URL
+    + "/verify/"
+    + product_id
+)
 
-    qr_image = qrcode.make(verification_url)
+qr_image = qrcode.make(verification_url)
 
-    buffer = io.BytesIO()
-    qr_image.save(buffer, format="PNG")
+buffer = io.BytesIO()
+qr_image.save(buffer, format="PNG")
 
-    qr_base64 = base64.b64encode(
-        buffer.getvalue()
-    ).decode()
+qr_base64 = base64.b64encode(
+    buffer.getvalue()
+).decode()
 
-    return render_template(
-        "qr.html",
-        product=product,
-        qr=qr_base64,
-        verification_url=verification_url
-    )
-
+return render_template(
+    "qr.html",
+    product=product,
+    qr=qr_base64,
+    verification_url=verification_url
+)
 
 @app.route("/verify/<product_id>")
 def verify_product(product_id):
-    connection = get_db()
+connection = get_db()
 
-    product = connection.execute(
-        "SELECT * FROM products WHERE id = ?",
-        (product_id,)
-    ).fetchone()
+product = connection.execute(
+    "SELECT * FROM products WHERE id = ?",
+    (product_id,)
+).fetchone()
 
-    events = connection.execute(
-        """
-        SELECT *
-        FROM events
-        WHERE product_id = ?
-        ORDER BY id
-        """,
-        (product_id,)
-    ).fetchall()
+events = connection.execute(
+    """
+    SELECT *
+    FROM events
+    WHERE product_id = ?
+    ORDER BY id
+    """,
+    (product_id,)
+).fetchall()
 
-    connection.close()
+connection.close()
 
-    return render_template(
-        "verify.html",
-        product=product,
-        events=events
-    )
+if product is None:
+    return "Product not found.", 404
 
+return render_template(
+    "verify.html",
+    product=product,
+    events=events
+)
 
 @app.route("/transfer/<product_id>", methods=["POST"])
 def transfer_product(product_id):
-    actor = request.form.get(
-        "actor",
-        "Authorized user"
-    ).strip()
+actor = request.form.get(
+"actor",
+"Authorized user"
+).strip()
 
-    destination = request.form.get(
-        "destination",
-        ""
-    ).strip()
+destination = request.form.get(
+    "destination",
+    ""
+).strip()
 
-    if not destination:
-        return "Destination is required.", 400
+if not destination:
+    return "Destination is required.", 400
 
-    connection = get_db()
+connection = get_db()
 
-    product = connection.execute(
-        "SELECT * FROM products WHERE id = ?",
-        (product_id,)
-    ).fetchone()
+product = connection.execute(
+    "SELECT * FROM products WHERE id = ?",
+    (product_id,)
+).fetchone()
 
-    if product is None:
-        connection.close()
-        return "Product not found.", 404
-
-    new_status = "With " + destination
-
-    connection.execute(
-        """
-        UPDATE products
-        SET status = ?
-        WHERE id = ?
-        """,
-        (new_status, product_id)
-    )
-
-    connection.commit()
+if product is None:
     connection.close()
+    return "Product not found.", 404
 
-    add_event(
-        product_id,
-        "Transferred to " + destination,
-        actor
-    )
+new_status = "With " + destination
 
-    return redirect(
-        url_for(
-            "verify_product",
-            product_id=product_id
-        )
-    )
+connection.execute(
+    """
+    UPDATE products
+    SET status = ?
+    WHERE id = ?
+    """,
+    (new_status, product_id)
+)
+
+connection.commit()
+connection.close()
+
+add_event(
+    product_id,
+    "Transferred to " + destination,
+    actor
+)
+
+return redirect(
+    url_for("verify_product", product_id=product_id)
+)
 
 @app.route("/scanner")
 def scanner():
@@ -295,10 +285,9 @@ return (
 
 setup_database()
 
-
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
+if name == "main":
+app.run(
+host="0.0.0.0",
+port=5000,
+debug=True
+)
