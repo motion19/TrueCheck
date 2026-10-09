@@ -1,1 +1,41 @@
+<!DOCTYPE html><html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrueCheck Barcode Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head><body style="font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 20px;"><h1>TrueCheck</h1>
+<h2>Scan Product Barcode</h2>
 
+<p>Point your phone camera at the barcode on the product.</p>
+
+<div id="reader" style="width: 100%;"></div>
+
+<p id="result"></p>
+
+<script>
+    function onScanSuccess(decodedText) {
+        document.getElementById("result").textContent =
+            "Barcode detected: " + decodedText;
+
+        window.location.href =
+            "/barcode?code=" + encodeURIComponent(decodedText);
+    }
+
+    function onScanFailure(error) {
+        // Continue scanning.
+    }
+
+    const scanner = new Html5QrcodeScanner(
+        "reader",
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 150 }
+        },
+        false
+    );
+
+    scanner.render(onScanSuccess, onScanFailure);
+</script>
+
+</body>
+</html>
