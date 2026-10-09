@@ -93,7 +93,7 @@ def home():
 
 @app.route("/register", methods=["POST"])
 def register_product():
-product_id = (
+  product_id = (
 "TC-NG-"
 + datetime.now().strftime("%Y%m%d")
 + "-"
