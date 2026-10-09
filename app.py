@@ -93,20 +93,19 @@ def home():
 
 @app.route("/register", methods=["POST"])
 def register_product():
-    product_id = (
-        "TC-NG-"
-        + datetime.now().strftime("%Y%m%d")
-        + "-"
-        + uuid.uuid4().hex[:8].upper()
-    )
+product_id = (
+"TC-NG-"
++ datetime.now().strftime("%Y%m%d")
++ "-"
++ uuid.uuid4().hex[:8].upper()
+)
 
-    name = request.form.get("name", "").strip()
-    batch = request.form.get("batch", "").strip()
-    barcode = request.form.get("barcode", "").strip()
+name = request.form.get("name", "").strip()
+batch = request.form.get("batch", "").strip()
+barcode = request.form.get("barcode", "").strip()
 
 if not name:
-return "Product name is 
-required.", 400
+    return "Product name is required.", 400
 
 connection = get_db()
 
@@ -125,6 +124,7 @@ connection.execute(
         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
 )
+
 connection.commit()
 connection.close()
 
