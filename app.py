@@ -13,13 +13,10 @@ DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
 def get_db():
-connection = sqlite3.connect(DATABASE)
-connection.row_factory = sqlite3.Row
-return connection
-
-def setup_database():
-connection = get_db()
-
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
+    return connection
+    
 connection.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id TEXT PRIMARY KEY,
