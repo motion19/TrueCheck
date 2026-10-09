@@ -105,7 +105,8 @@ def register_product():
     barcode = request.form.get("barcode", "").strip()
 
 if not name:
-return "Product name is required.", 400
+return "Product name is 
+required.", 400
 
 connection = get_db()
 
