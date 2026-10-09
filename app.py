@@ -54,24 +54,24 @@ connection.commit()
 connection.close()
 
 def add_event(product_id, event, actor):
-connection = get_db()
+    connection = get_db()
 
-connection.execute(
-    """
-    INSERT INTO events
-    (product_id, event, actor, created_at)
-    VALUES (?, ?, ?, ?)
-    """,
-    (
-        product_id,
-        event,
-        actor,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    connection.execute(
+        """
+        INSERT INTO events
+        (product_id, event, actor, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            product_id,
+            event,
+            actor,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
     )
-)
 
-connection.commit()
-connection.close()
+    connection.commit()
+    connection.close()
 
 @app.route("/")
 def home():
