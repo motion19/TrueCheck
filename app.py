@@ -4,6 +4,7 @@ import uuid
 import qrcode
 import io
 import base64
+import os
 from datetime import datetime
 
 app = Flask(name)
@@ -12,9 +13,9 @@ DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
 def get_db():
-    connection = sqlite3.connect(DATABASE)
-    connection.row_factory = sqlite3.Row
-    return connection
+connection = sqlite3.connect(DATABASE)
+connection.row_factory = sqlite3.Row
+return connection
 
 def setup_database():
 connection = get_db()
@@ -288,6 +289,6 @@ setup_database()
 if name == "main":
 app.run(
 host="0.0.0.0",
-port=5000,
-debug=True
+port=int(os.environ.get("PORT", 5000)),
+debug=False
 )
