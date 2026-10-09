@@ -75,7 +75,7 @@ def add_event(product_id, event, actor):
 
 @app.route("/")
 def home():
-connection = get_db()
+    connection = get_db()
 
 products = connection.execute(
     "SELECT * FROM products ORDER BY created_at DESC"
