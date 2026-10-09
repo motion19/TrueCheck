@@ -18,18 +18,18 @@ def get_db():
 
 
 def setup_database():
-connection = get_db()
+    connection = get_db()
 
-connection.execute("""
-    CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        batch TEXT,
-        barcode TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-""")
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            batch TEXT,
+            barcode TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
 
 connection.execute("""
     CREATE TABLE IF NOT EXISTS events (
