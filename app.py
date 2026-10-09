@@ -12,11 +12,13 @@ app = Flask(__name__)
 DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
+
 def get_db():
     connection = sqlite3.connect(DATABASE)
     connection.row_factory = sqlite3.Row
     return connection
-    
+
+
 def setup_database():
     connection = get_db()
 
@@ -56,6 +58,7 @@ def setup_database():
     connection.commit()
     connection.close()
 
+
 def add_event(product_id, event, actor):
     connection = get_db()
 
@@ -72,10 +75,11 @@ def add_event(product_id, event, actor):
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
     )
-    
+
     connection.commit()
     connection.close()
-   
+
+
 @app.route("/")
 def home():
     connection = get_db()
@@ -91,197 +95,208 @@ def home():
         products=products
     )
 
+
 @app.route("/register", methods=["POST"])
 def register_product():
-  product_id = (
-"TC-NG-"
-+ datetime.now().strftime("%Y%m%d")
-+ "-"
-+ uuid.uuid4().hex[:8].upper()
-)
-
-name = request.form.get("name", "").strip()
-batch = request.form.get("batch", "").strip()
-barcode = request.form.get("barcode", "").strip()
-
-if not name:
-    return "Product name is required.", 400
-
-connection = get_db()
-
-connection.execute(
-    """
-    INSERT INTO products
-    (id, name, batch, barcode, status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    """,
-    (
-        product_id,
-        name,
-        batch,
-        barcode,
-        "With manufacturer",
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    product_id = (
+        "TC-NG-"
+        + datetime.now().strftime("%Y%m%d")
+        + "-"
+        + uuid.uuid4().hex[:8].upper()
     )
-)
 
-connection.commit()
-connection.close()
+    name = request.form.get("name", "").strip()
+    batch = request.form.get("batch", "").strip()
+    barcode = request.form.get("barcode", "").strip()
 
-add_event(
-    product_id,
-    "Product registered",
-    "Manufacturer"
-)
+    if not name:
+        return "Product name is required.", 400
 
-return redirect(
-    url_for("show_qr", product_id=product_id)
-)
+    connection = get_db()
+
+    connection.execute(
+        """
+        INSERT INTO products
+        (id, name, batch, barcode, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            product_id,
+            name,
+            batch,
+            barcode,
+            "With manufacturer",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    add_event(
+        product_id,
+        "Product registered",
+        "Manufacturer"
+    )
+
+    return redirect(
+        url_for("show_qr", product_id=product_id)
+    )
+
+
 @app.route("/qr/<product_id>")
 def show_qr(product_id):
-connection = get_db()
+    connection = get_db()
 
-product = connection.execute(
-    "SELECT * FROM products WHERE id = ?",
-    (product_id,)
-).fetchone()
+    product = connection.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
 
-connection.close()
+    connection.close()
 
-if product is None:
-    return "Product not found.", 404
+    if product is None:
+        return "Product not found.", 404
 
-verification_url = (
-    NETWORK_URL
-    + "/verify/"
-    + product_id
-)
+    verification_url = (
+        NETWORK_URL
+        + "/verify/"
+        + product_id
+    )
 
-qr_image = qrcode.make(verification_url)
+    qr_image = qrcode.make(verification_url)
 
-buffer = io.BytesIO()
-qr_image.save(buffer, format="PNG")
+    buffer = io.BytesIO()
+    qr_image.save(buffer, format="PNG")
 
-qr_base64 = base64.b64encode(
-    buffer.getvalue()
-).decode()
+    qr_base64 = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
 
-return render_template(
-    "qr.html",
-    product=product,
-    qr=qr_base64,
-    verification_url=verification_url
-)
+    return render_template(
+        "qr.html",
+        product=product,
+        qr=qr_base64,
+        verification_url=verification_url
+    )
+
 
 @app.route("/verify/<product_id>")
 def verify_product(product_id):
-connection = get_db()
+    connection = get_db()
 
-product = connection.execute(
-    "SELECT * FROM products WHERE id = ?",
-    (product_id,)
-).fetchone()
+    product = connection.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
 
-events = connection.execute(
-    """
-    SELECT *
-    FROM events
-    WHERE product_id = ?
-    ORDER BY id
-    """,
-    (product_id,)
-).fetchall()
+    events = connection.execute(
+        """
+        SELECT *
+        FROM events
+        WHERE product_id = ?
+        ORDER BY id
+        """,
+        (product_id,)
+    ).fetchall()
 
-connection.close()
+    connection.close()
 
-if product is None:
-    return "Product not found.", 404
+    if product is None:
+        return "Product not found.", 404
 
-return render_template(
-    "verify.html",
-    product=product,
-    events=events
-)
+    return render_template(
+        "verify.html",
+        product=product,
+        events=events
+    )
+
 
 @app.route("/transfer/<product_id>", methods=["POST"])
 def transfer_product(product_id):
-actor = request.form.get(
-"actor",
-"Authorized user"
-).strip()
+    actor = request.form.get(
+        "actor",
+        "Authorized user"
+    ).strip()
 
-destination = request.form.get(
-    "destination",
-    ""
-).strip()
+    destination = request.form.get(
+        "destination",
+        ""
+    ).strip()
 
-if not destination:
-    return "Destination is required.", 400
+    if not destination:
+        return "Destination is required.", 400
 
-connection = get_db()
+    connection = get_db()
 
-product = connection.execute(
-    "SELECT * FROM products WHERE id = ?",
-    (product_id,)
-).fetchone()
+    product = connection.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
 
-if product is None:
+    if product is None:
+        connection.close()
+        return "Product not found.", 404
+
+    new_status = "With " + destination
+
+    connection.execute(
+        """
+        UPDATE products
+        SET status = ?
+        WHERE id = ?
+        """,
+        (new_status, product_id)
+    )
+
+    connection.commit()
     connection.close()
-    return "Product not found.", 404
 
-new_status = "With " + destination
+    add_event(
+        product_id,
+        "Transferred to " + destination,
+        actor
+    )
 
-connection.execute(
-    """
-    UPDATE products
-    SET status = ?
-    WHERE id = ?
-    """,
-    (new_status, product_id)
-)
+    return redirect(
+        url_for("verify_product", product_id=product_id)
+    )
 
-connection.commit()
-connection.close()
-
-add_event(
-    product_id,
-    "Transferred to " + destination,
-    actor
-)
-
-return redirect(
-    url_for("verify_product", product_id=product_id)
-)
 
 @app.route("/scanner")
 def scanner():
-return render_template("scanner.html")
+    return render_template("scanner.html")
+
 
 @app.route("/barcode")
 def check_barcode():
-barcode = request.args.get("code", "").strip()
+    barcode = request.args.get("code", "").strip()
 
-if not barcode:
-    return "No barcode was provided.", 400
+    if not barcode:
+        return "No barcode was provided.", 400
 
-connection = get_db()
+    connection = get_db()
 
-product = connection.execute(
-    "SELECT id FROM products WHERE barcode = ?",
-    (barcode,)
-).fetchone()
+    product = connection.execute(
+        "SELECT id FROM products WHERE barcode = ?",
+        (barcode,)
+    ).fetchone()
 
-connection.close()
+    connection.close()
 
-if product:
-    return redirect(
-        url_for("verify_product", product_id=product["id"])
+    if product:
+        return redirect(
+            url_for(
+                "verify_product",
+                product_id=product["id"]
+            )
+        )
+
+    return (
+        "This barcode is not registered in TrueCheck. "
+        "Authenticity cannot be confirmed."
     )
 
-return (
-    "This barcode is not registered in TrueCheck. "
-    "Authenticity cannot be confirmed."
-)
 
 setup_database()
 
