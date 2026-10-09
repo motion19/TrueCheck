@@ -7,7 +7,7 @@ import base64
 import os
 from datetime import datetime
 
-app = Flask(name)
+app = Flask(__name__)
 
 DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
@@ -17,41 +17,44 @@ def get_db():
     connection.row_factory = sqlite3.Row
     return connection
     
-connection.execute("""
-    CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        batch TEXT,
-        barcode TEXT,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-""")
+def setup_database():
+    connection = get_db()
 
-connection.execute("""
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id TEXT NOT NULL,
-        event TEXT NOT NULL,
-        actor TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-""")
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            batch TEXT,
+            barcode TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-columns = [
-    row["name"]
-    for row in connection.execute(
-        "PRAGMA table_info(products)"
-    ).fetchall()
-]
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id TEXT NOT NULL,
+            event TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-if "barcode" not in columns:
-    connection.execute(
-        "ALTER TABLE products ADD COLUMN barcode TEXT"
-    )
+    columns = [
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(products)"
+        ).fetchall()
+    ]
 
-connection.commit()
-connection.close()
+    if "barcode" not in columns:
+        connection.execute(
+            "ALTER TABLE products ADD COLUMN barcode TEXT"
+        )
+
+    connection.commit()
+    connection.close()
 
 def add_event(product_id, event, actor):
     connection = get_db()
@@ -69,37 +72,37 @@ def add_event(product_id, event, actor):
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
     )
-
+    
     connection.commit()
     connection.close()
-
+   
 @app.route("/")
 def home():
-connection = get_db()
+    connection = get_db()
 
-products = connection.execute(
-    "SELECT * FROM products ORDER BY created_at DESC"
-).fetchall()
+    products = connection.execute(
+        "SELECT * FROM products ORDER BY created_at DESC"
+    ).fetchall()
 
-connection.close()
+    connection.close()
 
-return render_template(
-    "index.html",
-    products=products
-)
+    return render_template(
+        "index.html",
+        products=products
+    )
 
 @app.route("/register", methods=["POST"])
 def register_product():
-product_id = (
-"TC-NG-"
-+ datetime.now().strftime("%Y%m%d")
-+ "-"
-+ uuid.uuid4().hex[:8].upper()
-)
+    product_id = (
+        "TC-NG-"
+        + datetime.now().strftime("%Y%m%d")
+        + "-"
+        + uuid.uuid4().hex[:8].upper()
+    )
 
-name = request.form.get("name", "").strip()
-batch = request.form.get("batch", "").strip()
-barcode = request.form.get("barcode", "").strip()
+    name = request.form.get("name", "").strip()
+    batch = request.form.get("batch", "").strip()
+    barcode = request.form.get("barcode", "").strip()
 
 if not name:
 return "Product name is required.", 400
