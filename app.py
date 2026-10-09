@@ -75,7 +75,7 @@ def add_event(product_id, event, actor):
 
 @app.route("/")
 def home():
-    connection = get_db()
+connection = get_db()
 
 products = connection.execute(
     "SELECT * FROM products ORDER BY created_at DESC"
@@ -102,7 +102,7 @@ batch = request.form.get("batch", "").strip()
 barcode = request.form.get("barcode", "").strip()
 
 if not name:
-    return "Product name is required.", 400
+return "Product name is required.", 400
 
 connection = get_db()
 
@@ -121,7 +121,6 @@ connection.execute(
         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
 )
-
 connection.commit()
 connection.close()
 
@@ -134,7 +133,6 @@ add_event(
 return redirect(
     url_for("show_qr", product_id=product_id)
 )
-
 @app.route("/qr/<product_id>")
 def show_qr(product_id):
 connection = get_db()
@@ -283,9 +281,10 @@ return (
 
 setup_database()
 
-if name == "main":
-app.run(
-host="0.0.0.0",
-port=int(os.environ.get("PORT", 5000)),
-debug=False
-)
+
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
