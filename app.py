@@ -18,31 +18,43 @@ def get_db():
 
 
 def setup_database():
-    connection = get_db()
+connection = get_db()
 
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-           batch TEXT,
-barcode TEXT,
-status TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
+connection.execute("""
+    CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        batch TEXT,
+        barcode TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+""")
 
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id TEXT NOT NULL,
-            event TEXT NOT NULL,
-            actor TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
+connection.execute("""
+    CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id TEXT NOT NULL,
+        event TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+""")
 
-    connection.commit()
-    connection.close()
+columns = [
+    row["name"]
+    for row in connection.execute(
+        "PRAGMA table_info(products)"
+    ).fetchall()
+]
+
+if "barcode" not in columns:
+    connection.execute(
+        "ALTER TABLE products ADD COLUMN barcode TEXT"
+    )
+
+connection.commit()
+connection.close()
 
 
 def add_event(product_id, event, actor):
@@ -251,6 +263,35 @@ def transfer_product(product_id):
         )
     )
 
+@app.route("/scanner")
+def scanner():
+return render_template("scanner.html")
+
+@app.route("/barcode")
+def check_barcode():
+barcode = request.args.get("code", "").strip()
+
+if not barcode:
+    return "No barcode was provided.", 400
+
+connection = get_db()
+
+product = connection.execute(
+    "SELECT id FROM products WHERE barcode = ?",
+    (barcode,)
+).fetchone()
+
+connection.close()
+
+if product:
+    return redirect(
+        url_for("verify_product", product_id=product["id"])
+    )
+
+return (
+    "This barcode is not registered in TrueCheck. "
+    "Authenticity cannot be confirmed."
+)
 
 setup_database()
 
