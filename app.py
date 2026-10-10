@@ -340,53 +340,59 @@ def verify_product(product_id):
 
 @app.route("/transfer/<product_id>", methods=["POST"])
 def transfer_product(product_id):
-    actor = request.form.get(
-        "actor",
-        "Authorized user"
-    ).strip()
+if "business_id" not in session:
+flash("Please log in to transfer products.")
+return redirect(url_for("business_login"))
 
-    destination = request.form.get(
-        "destination",
-        ""
-    ).strip()
+actor = session.get("business_name", "").strip()
+role = session.get("role", "").strip()
 
-    if not destination:
-        return "Destination is required.", 400
+destination = request.form.get("destination", "").strip()
 
-    connection = get_db()
+allowed_destinations = {
+    "Manufacturer": ["Wholesaler"],
+    "Wholesaler": ["Retailer"],
+    "Retailer": []
+}
 
-    product = connection.execute(
-        "SELECT * FROM products WHERE id = ?",
-        (product_id,)
-    ).fetchone()
+if destination not in allowed_destinations.get(role, []):
+    flash("Your business role is not permitted to make this transfer.")
+    return redirect(url_for("verify_product", product_id=product_id))
 
-    if product is None:
-        connection.close()
-        return "Product not found.", 404
+connection = get_db()
 
-    new_status = "With " + destination
+product = connection.execute(
+    "SELECT * FROM products WHERE id = ?",
+    (product_id,)
+).fetchone()
 
-    connection.execute(
-        """
-        UPDATE products
-        SET status = ?
-        WHERE id = ?
-        """,
-        (new_status, product_id)
-    )
-
-    connection.commit()
+if product is None:
     connection.close()
+    return "Product not found.", 404
 
-    add_event(
-        product_id,
-        "Transferred to " + destination,
-        actor
-    )
+new_status = "With " + destination
 
-    return redirect(
-        url_for("verify_product", product_id=product_id)
-    )
+connection.execute(
+    """
+    UPDATE products
+    SET status = ?
+    WHERE id = ?
+    """,
+    (new_status, product_id)
+)
+
+connection.commit()
+connection.close()
+
+add_event(
+    product_id,
+    "Transferred to " + destination,
+    actor
+)
+
+return redirect(
+    url_for("verify_product", product_id=product_id)
+)
 
 
 @app.route("/scanner")
