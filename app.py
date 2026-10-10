@@ -175,15 +175,6 @@ def business_login():
             (email,)
         ).fetchone()
 
-        connection.close()
-
-        if business and check_password_hash(
-            business["password_hash"], password
-        ):
-            session.clear()
-            session["business_id"] = business["id"]
-            session["business_name"] = business["business_name"]
-            session["role"] = business["role"]
 
             return redirect(url_for("home"))
 
@@ -341,7 +332,7 @@ def verify_product(product_id):
 @app.route("/transfer/<product_id>", methods=["POST"])
 
 def transfer_product(product_id):
- if "business_id" not in session:
+if "business_id" not in session:
 flash("Please log in to transfer products.")
 return redirect(url_for("business_login"))
 
