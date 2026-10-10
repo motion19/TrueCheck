@@ -339,9 +339,7 @@ def verify_product(product_id):
 
 
 @app.route("/transfer/<product_id>", methods=["POST"])
-
 def transfer_product(product_id):
-
 if "business_id" not in session:
 flash("Please log in to transfer products.")
 return redirect(url_for("business_login"))
