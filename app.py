@@ -93,6 +93,111 @@ def add_event(product_id, event, actor):
     connection.commit()
     connection.close()
 
+@app.route("/business/register", methods=["GET", "POST"])
+def business_register():
+    if request.method == "POST":
+        business_name = request.form.get(
+            "business_name", ""
+        ).strip()
+
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get("password", "")
+
+        role = request.form.get("role", "").strip()
+
+        allowed_roles = [
+            "Manufacturer",
+            "Wholesaler",
+            "Retailer"
+        ]
+
+        if not business_name or not email or not password:
+            flash("Please complete all required fields.")
+            return redirect(url_for("business_register"))
+
+        if role not in allowed_roles:
+            flash("Please select a valid business role.")
+            return redirect(url_for("business_register"))
+
+        if len(password) < 8:
+            flash("Your password must be at least 8 characters.")
+            return redirect(url_for("business_register"))
+
+        connection = get_db()
+
+        try:
+            connection.execute(
+                """
+                INSERT INTO businesses
+                (business_name, email, password_hash, role, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    business_name,
+                    email,
+                    generate_password_hash(password),
+                    role,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                )
+            )
+
+            connection.commit()
+
+        except sqlite3.IntegrityError:
+            connection.close()
+            flash("This email is already registered.")
+            return redirect(url_for("business_register"))
+
+        connection.close()
+
+        flash("Business account created. Please log in.")
+        return redirect(url_for("business_login"))
+
+    return render_template("business_register.html")
+
+
+@app.route("/business/login", methods=["GET", "POST"])
+def business_login():
+    if request.method == "POST":
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get("password", "")
+
+        connection = get_db()
+
+        business = connection.execute(
+            "SELECT * FROM businesses WHERE email = ?",
+            (email,)
+        ).fetchone()
+
+        connection.close()
+
+        if business and check_password_hash(
+            business["password_hash"], password
+        ):
+            session.clear()
+            session["business_id"] = business["id"]
+            session["business_name"] = business["business_name"]
+            session["role"] = business["role"]
+
+            return redirect(url_for("home"))
+
+        flash("Invalid email or password.")
+        return redirect(url_for("business_login"))
+
+    return render_template("business_login.html")
+
+
+@app.route("/business/logout")
+def business_logout():
+    session.clear()
+    flash("You have logged out.")
+    return redirect(url_for("business_login"))
 
 @app.route("/")
 def home():
