@@ -1,5 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash
+)
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash
+)
 import secrets
 import sqlite3
 import uuid
@@ -9,7 +20,9 @@ import base64
 import os
 from datetime import datetime
 
+
 app = Flask(__name__)
+
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
 DATABASE = "truecheck.db"
@@ -24,7 +37,7 @@ def get_db():
 
 def setup_database():
     connection = get_db()
-    
+
     connection.execute("""
         CREATE TABLE IF NOT EXISTS businesses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +48,7 @@ def setup_database():
             created_at TEXT NOT NULL
         )
     """)
-    
+
     connection.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id TEXT PRIMARY KEY,
@@ -93,6 +106,23 @@ def add_event(product_id, event, actor):
     connection.commit()
     connection.close()
 
+
+@app.route("/")
+def home():
+    connection = get_db()
+
+    products = connection.execute(
+        "SELECT * FROM products ORDER BY created_at DESC"
+    ).fetchall()
+
+    connection.close()
+
+    return render_template(
+        "index.html",
+        products=products
+    )
+
+
 @app.route("/business/register", methods=["GET", "POST"])
 def business_register():
     if request.method == "POST":
@@ -105,7 +135,6 @@ def business_register():
         ).strip().lower()
 
         password = request.form.get("password", "")
-
         role = request.form.get("role", "").strip()
 
         allowed_roles = [
@@ -175,6 +204,15 @@ def business_login():
             (email,)
         ).fetchone()
 
+        connection.close()
+
+        if business and check_password_hash(
+            business["password_hash"], password
+        ):
+            session.clear()
+            session["business_id"] = business["id"]
+            session["business_name"] = business["business_name"]
+            session["role"] = business["role"]
 
             return redirect(url_for("home"))
 
@@ -190,21 +228,6 @@ def business_logout():
     flash("You have logged out.")
     return redirect(url_for("business_login"))
 
-@app.route("/")
-def home():
-    connection = get_db()
-
-    products = connection.execute(
-        "SELECT * FROM products ORDER BY created_at DESC"
-    ).fetchall()
-
-    connection.close()
-
-    return render_template(
-        "index.html",
-        products=products
-    )
-
 
 @app.route("/register", methods=["POST"])
 def register_product():
@@ -215,6 +238,15 @@ def register_product():
     if session.get("role") != "Manufacturer":
         flash("Only manufacturers can register products.")
         return redirect(url_for("home"))
+
+    name = request.form.get("name", "").strip()
+    batch = request.form.get("batch", "").strip()
+    barcode = request.form.get("barcode", "").strip()
+
+    if not name:
+        flash("Product name is required.")
+        return redirect(url_for("home"))
+
     product_id = (
         "TC-NG-"
         + datetime.now().strftime("%Y%m%d")
@@ -222,12 +254,7 @@ def register_product():
         + uuid.uuid4().hex[:8].upper()
     )
 
-    name = request.form.get("name", "").strip()
-    batch = request.form.get("batch", "").strip()
-    barcode = request.form.get("barcode", "").strip()
-
-    if not name:
-        return "Product name is required.", 400
+    manufacturer = session.get("business_name", "").strip()
 
     connection = get_db()
 
@@ -242,7 +269,7 @@ def register_product():
             name,
             batch,
             barcode,
-            "With manufacturer",
+            "With Manufacturer",
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
     )
@@ -253,7 +280,7 @@ def register_product():
     add_event(
         product_id,
         "Product registered",
-        "Manufacturer"
+        manufacturer
     )
 
     return redirect(
@@ -276,9 +303,7 @@ def show_qr(product_id):
         return "Product not found.", 404
 
     verification_url = (
-        NETWORK_URL
-        + "/verify/"
-        + product_id
+        NETWORK_URL + "/verify/" + product_id
     )
 
     qr_image = qrcode.make(verification_url)
@@ -330,62 +355,74 @@ def verify_product(product_id):
 
 
 @app.route("/transfer/<product_id>", methods=["POST"])
-
 def transfer_product(product_id):
+    if "business_id" not in session:
+        flash("Please log in to transfer products.")
+        return redirect(url_for("business_login"))
 
-if "business_id" not in session:
-flash("Please log in to transfer products.")
-return redirect(url_for("business_login"))
+    role = session.get("role", "").strip()
+    actor = session.get("business_name", "").strip()
 
-actor = session.get("business_name", "").strip()
-role = session.get("role", "").strip()
+    allowed_destinations = {
+        "Manufacturer": "Wholesaler",
+        "Wholesaler": "Retailer"
+    }
 
-destination = request.form.get("destination", "").strip()
+    destination = allowed_destinations.get(role)
 
-allowed_destinations = {
-    "Manufacturer": ["Wholesaler"],
-    "Wholesaler": ["Retailer"],
-    "Retailer": []
-}
+    if not destination:
+        flash("Your business role cannot transfer this product.")
+        return redirect(
+            url_for("verify_product", product_id=product_id)
+        )
 
-if destination not in allowed_destinations.get(role, []):
-    flash("Your business role is not permitted to make this transfer.")
-    return redirect(url_for("verify_product", product_id=product_id))
+    connection = get_db()
 
-connection = get_db()
+    product = connection.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
 
-product = connection.execute(
-    "SELECT * FROM products WHERE id = ?",
-    (product_id,)
-).fetchone()
+    if product is None:
+        connection.close()
+        return "Product not found.", 404
 
-if product is None:
+    expected_status = "With " + role
+
+    if product["status"] != expected_status:
+        connection.close()
+
+        flash(
+            "This product is not currently at your supply-chain stage."
+        )
+
+        return redirect(
+            url_for("verify_product", product_id=product_id)
+        )
+
+    new_status = "With " + destination
+
+    connection.execute(
+        """
+        UPDATE products
+        SET status = ?
+        WHERE id = ?
+        """,
+        (new_status, product_id)
+    )
+
+    connection.commit()
     connection.close()
-    return "Product not found.", 404
 
-new_status = "With " + destination
+    add_event(
+        product_id,
+        "Transferred to " + destination,
+        actor
+    )
 
-connection.execute(
-    """
-    UPDATE products
-    SET status = ?
-    WHERE id = ?
-    """,
-    (new_status, product_id)
-)
-
-connection.commit()
-connection.close()
-
-add_event(
-    product_id,
-    "Transferred to " + destination,
-    actor
-)
-
-return redirect(
-    url_for("verify_product", product_id=product_id)
-)
+    return redirect(
+        url_for("verify_product", product_id=product_id)
+    )
 
 
 @app.route("/scanner")
