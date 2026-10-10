@@ -217,6 +217,13 @@ def home():
 
 @app.route("/register", methods=["POST"])
 def register_product():
+    if "business_id" not in session:
+        flash("Please log in to register a product.")
+        return redirect(url_for("business_login"))
+
+    if session.get("role") != "Manufacturer":
+        flash("Only manufacturers can register products.")
+        return redirect(url_for("home"))
     product_id = (
         "TC-NG-"
         + datetime.now().strftime("%Y%m%d")
