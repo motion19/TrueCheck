@@ -1,1 +1,61 @@
+<!DOCTYPE html><html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueCheck Business Registration</title>
+</head>
+<body>
+    <h1>Register Your Business</h1>{% with messages = get_flashed_messages() %}
+    {% for message in messages %}
+        <p>{{ message }}</p>
+    {% endfor %}
+{% endwith %}
 
+<form method="POST" action="/business/register">
+    <p>
+        <input
+            type="text"
+            name="business_name"
+            placeholder="Business name"
+            required
+        >
+    </p>
+
+    <p>
+        <input
+            type="email"
+            name="email"
+            placeholder="Business email"
+            required
+        >
+    </p>
+
+    <p>
+        <input
+            type="password"
+            name="password"
+            placeholder="Password (at least 8 characters)"
+            minlength="8"
+            required
+        >
+    </p>
+
+    <p>
+        <select name="role" required>
+            <option value="">Select business role</option>
+            <option value="Manufacturer">Manufacturer</option>
+            <option value="Wholesaler">Wholesaler</option>
+            <option value="Retailer">Retailer</option>
+        </select>
+    </p>
+
+    <button type="submit">Register Business</button>
+</form>
+
+<p>
+    Already registered?
+    <a href="/business/login">Log in here</a>
+</p>
+
+</body>
+</html>
