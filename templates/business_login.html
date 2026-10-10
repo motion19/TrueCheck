@@ -1,1 +1,42 @@
+!DOCTYPE html><html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueCheck Business Login</title>
+</head>
+<body>
+    <h1>TrueCheck Business Login</h1>{% with messages = get_flashed_messages() %}
+    {% for message in messages %}
+        <p>{{ message }}</p>
+    {% endfor %}
+{% endwith %}
 
+<form method="POST" action="/business/login">
+    <p>
+        <input
+            type="email"
+            name="email"
+            placeholder="Business email"
+            required
+        >
+    </p>
+
+    <p>
+        <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            required
+        >
+    </p>
+
+    <button type="submit">Log In</button>
+</form>
+
+<p>
+    Don't have a business account?
+    <a href="/business/register">Register your business</a>
+</p>
+
+</body>
+</html>
