@@ -379,9 +379,7 @@ connection.execute(
     WHERE id = ?
     """,
     (new_status, product_id)
-
 )
-
 
 connection.commit()
 connection.close()
