@@ -1,41 +1,111 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TrueCheck Barcode Scanner</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-</head><body style="font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 20px;"><h1>TrueCheck</h1>
-<h2>Scan Product Barcode</h2>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            text-align: center;
+        }
 
-<p>Point your phone camera at the barcode on the product.</p>
+        h1 {
+            color: #087f5b;
+        }
 
-<div id="reader" style="width: 100%;"></div>
+        #reader {
+            width: 100%;
+            margin: 20px auto;
+        }
 
-<p id="result"></p>
+        input, button {
+            padding: 12px;
+            margin: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
 
-<script>
-    function onScanSuccess(decodedText) {
-        document.getElementById("result").textContent =
-            "Barcode detected: " + decodedText;
+        input {
+            width: 100%;
+        }
 
-        window.location.href =
-            "/barcode?code=" + encodeURIComponent(decodedText);
-    }
+        button {
+            background: #087f5b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
 
-    function onScanFailure(error) {
-        // Continue scanning.
-    }
+        .note {
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
 
-    const scanner = new Html5QrcodeScanner(
-        "reader",
-        {
-            fps: 10,
-            qrbox: { width: 250, height: 150 }
-        },
-        false
-    );
+    <h1>TrueCheck Barcode Scanner</h1>
 
-    scanner.render(onScanSuccess, onScanFailure);
-</script>
+    <p>Scan a product barcode using your camera.</p>
+
+    <div id="reader"></div>
+
+    <h3>Or enter the barcode manually</h3>
+
+    <form action="/barcode" method="GET">
+        <input
+            type="text"
+            name="code"
+            placeholder="Enter product barcode"
+            required
+        >
+        <button type="submit">Verify Product</button>
+    </form>
+
+    <p id="message" class="note">
+        Allow camera access when your browser asks.
+    </p>
+
+    <script>
+        const message = document.getElementById("message");
+
+        if (typeof Html5QrcodeScanner !== "undefined") {
+            const scanner = new Html5QrcodeScanner(
+                "reader",
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 },
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.QR_CODE
+                    ]
+                },
+                false
+            );
+
+            scanner.render(function(decodedText) {
+                message.textContent = "Barcode detected: " + decodedText;
+                window.location.href =
+                    "/barcode?code=" + encodeURIComponent(decodedText);
+            }, function(error) {
+                // Ignore temporary scanning errors.
+            });
+        } else {
+            message.textContent =
+                "Camera scanner could not load. You can enter the barcode manually.";
+        }
+    </script>
 
 </body>
 </html>
