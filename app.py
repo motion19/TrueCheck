@@ -29,11 +29,21 @@ DATABASE = "truecheck.db"
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
 
 
-def get_db():
-    connection = sqlite3.connect(DATABASE)
-    connection.row_factory = sqlite3.Row
-    return connection
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
+def get_db():
+    database_url = os.environ.get("DATABASE_URL")
+
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is not configured.")
+
+    connection = psycopg2.connect(
+        database_url,
+        cursor_factory=RealDictCursor
+    )
+
+    return connection
 
 def setup_database():
     connection = get_db()
