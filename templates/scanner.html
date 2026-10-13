@@ -95,16 +95,21 @@
             );
 
             scanner.render(function(decodedText) {
-                message.textContent = "Barcode detected: " + decodedText;
-                window.location.href =
-                    "/barcode?code=" + encodeURIComponent(decodedText);
-            }, function(error) {
-                // Ignore temporary scanning errors.
-            });
-        } else {
-            message.textContent =
-                "Camera scanner could not load. You can enter the barcode manually.";
-        }
+message.textContent = "Code detected: " + decodedText;
+
+// If this is a TrueCheck verification link, open it directly.
+if (decodedText.includes("/verify/")) {
+    window.location.href = decodedText;
+    return;
+}
+
+// Otherwise, treat it as a product barcode.
+window.location.href =
+    "/barcode?code=" + encodeURIComponent(decodedText);
+
+}, function(error) {
+// Ignore temporary scanning errors.
+});
     </script>
 
 </body>
