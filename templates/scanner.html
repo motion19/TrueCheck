@@ -22,7 +22,7 @@
             <button type="submit">Verify Product</button>        </form>
         <p class="note">            Note: A product not found in TrueCheck is unverified.            This alone does not prove that the product is counterfeit.        </p>
     </div>
-    <script>        const message = document.getElementById("message");        const input = document.getElementById("barcode");        const form = document.getElementById("barcodeForm");
+    <script>        const message = document.getElementById("message").textContent = "JavaScript is running.";        const input = document.getElementById("barcode");        const form = document.getElementById("barcodeForm");
         let scanner = null;        let processing = false;
         function showMessage(text) {            message.textContent = text;        }
         function verifyCode(code) {            code = (code || "").trim();
