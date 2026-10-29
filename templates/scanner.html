@@ -1,4 +1,4 @@
-="en"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>TrueCheck Product Scanner</title>
+<!DOCTYPE html><html lang="en"><head>    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>TrueCheck Product Scanner</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>        * {            box-sizing: border-box;        }
         body {            font-family: Arial, sans-serif;            max-width: 600px;            margin: 0 auto;            padding: 20px;            background: #f4f7f6;            color: #222;        }
@@ -12,17 +12,15 @@
         input {            border: 1px solid #bbb;        }
         button {            background: #087f5b;            color: white;            border: none;            cursor: pointer;        }
         .note {            color: #555;            font-size: 13px;            line-height: 1.5;        }    </style></head>
-<body>    <div class="container">
-        <h1>TrueCheck Product Scanner</h1>
+<body>    <div class="container">        <h1>TrueCheck Product Scanner</h1>
         <p class="description">            Scan a TrueCheck QR code or a product barcode            to check whether the product is registered in TrueCheck.        </p>
         <div id="reader"></div>
         <p id="message" role="status" aria-live="polite">            Loading scanner...        </p>
         <form id="barcodeForm">            <label for="barcode">Enter product barcode manually</label>
             <input                type="text"                id="barcode"                name="code"                placeholder="Enter barcode number"                autocomplete="off"                required            >
             <button type="submit">Verify Product</button>        </form>
-        <p class="note">            Note: A product not found in TrueCheck is unverified.            This alone does not prove that the product is counterfeit.        </p>
-    </div>
-    <script>        const message = document.getElementById("message").textContent = "JavaScript is running.";        const input = document.getElementById("barcode");        const form = document.getElementById("barcodeForm");
+        <p class="note">            Note: A product not found in TrueCheck is unverified.            This alone does not prove that the product is counterfeit.        </p>    </div>
+    <script>        const message = document.getElementById("message");        const input = document.getElementById("barcode");        const form = document.getElementById("barcodeForm");
         let scanner = null;        let processing = false;
         function showMessage(text) {            message.textContent = text;        }
         function verifyCode(code) {            code = (code || "").trim();
@@ -34,11 +32,12 @@
                 } catch (error) {                    processing = false;                    showMessage("The QR code contains an invalid link.");                    return;                }            }
             window.location.href =                "/barcode?code=" + encodeURIComponent(code);        }
         form.addEventListener("submit", function (event) {            event.preventDefault();            processing = false;            verifyCode(input.value);        });
-        async function startScanner() {            if (typeof Html5Qrcode === "undefined") {                showMessage(                    "Scanner library could not load. Check your internet connection and refresh the page. You can still enter a barcode manually."                );                return;            }
+        async function startScanner() {            if (typeof Html5Qrcode === "undefined") {                showMessage(                    "Scanner library could not load. Check your internet connection and refresh the page."                );                return;            }
+            if (typeof Html5QrcodeSupportedFormats === "undefined") {                showMessage(                    "Scanner formats could not load. Please refresh the page."                );                return;            }
             try {                scanner = new Html5Qrcode("reader");
                 showMessage(                    "Starting camera. Please allow camera access if requested."                );
-                await scanner.start(                    { facingMode: "environment" },                    {                        fps: 10,                        qrbox: {                            width: 250,                            height: 150                        },                        formatsToSupport: [                            Html5QrcodeSupportedFormats.QR_CODE,                            Html5QrcodeSupportedFormats.EAN_13,                            Html5QrcodeSupportedFormats.EAN_8,                            Html5QrcodeSupportedFormats.UPC_A,                            Html5QrcodeSupportedFormats.UPC_E,                            Html5QrcodeSupportedFormats.CODE_128,                            Html5QrcodeSupportedFormats.CODE_39                        ]                    },                    function (decodedText) {                        verifyCode(decodedText);                    },                    function () {                        // Continue scanning when no code is detected.                    }                );
+                await scanner.start(                    { facingMode: "environment" },                    {                        fps: 10,                        qrbox: {                            width: 250,                            height: 150                        },                        formatsToSupport: [                            Html5QrcodeSupportedFormats.QR_CODE,                            Html5QrcodeSupportedFormats.EAN_13,                            Html5QrcodeSupportedFormats.EAN_8,                            Html5QrcodeSupportedFormats.UPC_A,                            Html5QrcodeSupportedFormats.UPC_E,                            Html5QrcodeSupportedFormats.CODE_128,                            Html5QrcodeSupportedFormats.CODE_39                        ]                    },                    function (decodedText) {                        verifyCode(decodedText);                    },                    function () {}                );
                 showMessage(                    "Camera is ready. Point it at a TrueCheck QR code or product barcode."                );
             } catch (error) {                console.error("TrueCheck scanner error:", error);
-                showMessage(                    "Camera could not start. Please allow camera access, then refresh the page. You can also enter the barcode manually."                );            }        }
+                showMessage(                    "Camera could not start. Allow camera access and refresh the page. You can also enter the barcode manually."                );            }        }
         startScanner();    </script></body></html>
