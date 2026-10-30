@@ -481,7 +481,7 @@ def transfer_product(product_id):
     try:
         product = connection.execute(
             """
-            SELECT *
+            SELECT id, status
             FROM products
             WHERE id = %s
             FOR UPDATE
@@ -490,20 +490,22 @@ def transfer_product(product_id):
         ).fetchone()
 
         if product is None:
-            return "Product not found.", 404
+            flash("Product not found.")
+            return redirect(url_for("home"))
 
-        expected_status = "With " + role
+        expected_status = f"With {role}"
 
         if product["status"] != expected_status:
             flash(
-                "This product is not currently at your supply-chain stage."
+                f"Transfer rejected. Product status is currently "
+                f"{product['status']}."
             )
-
+            connection.rollback()
             return redirect(
                 url_for("verify_product", product_id=product_id)
             )
 
-        new_status = "With " + destination
+        new_status = f"With {destination}"
 
         connection.execute(
             """
@@ -522,7 +524,7 @@ def transfer_product(product_id):
             """,
             (
                 product_id,
-                "Transferred to " + destination,
+                f"Transferred to {destination}",
                 actor,
                 current_time()
             )
@@ -530,9 +532,14 @@ def transfer_product(product_id):
 
         connection.commit()
 
+        flash(
+            f"Transfer successful! Product is now with {destination}."
+        )
+
     except Exception:
         connection.rollback()
-        raise
+        app.logger.exception("Product transfer failed.")
+        flash("Transfer failed because of a database error.")
 
     finally:
         connection.close()
@@ -540,7 +547,6 @@ def transfer_product(product_id):
     return redirect(
         url_for("verify_product", product_id=product_id)
     )
-
 
 # --------------------------------
 # BARCODE SCANNER PAGE
