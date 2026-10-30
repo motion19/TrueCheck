@@ -1,56 +1,211 @@
-<!DOCTYPE html><html><head>    <meta name="viewport" content="width=device-width, initial-scale=1">    <title>TrueCheck Verification</title></head>
-<body style="font-family: Arial; max-width: 800px; margin: 30px auto; padding: 20px;">
-{% if product %}
-    <h1>TrueCheck Verification</h1>
-    <h2> Product Registered</h2>
-    <p>        <strong>Product:</strong>        {{ product["name"] }}    </p>
-    <p>        <strong>Product ID:</strong>        {{ product["id"] }}    </p>
-    <p>        <strong>Batch:</strong>        {{ product["batch"] or "Not provided" }}    </p>
-    <p>        <strong>Current status:</strong>        {{ product["status"] }}    </p>
-    <hr>
-    <h2>Supply-Chain History</h2>
-    {% for event in events %}
-        <div style="padding: 10px; border-bottom: 1px solid #ddd;">
-            <strong>{{ event["event"] }}</strong>
-            <br>
-            Actor:            {{ event["actor"] }}
-            <br>
-            Time:            {{ event["created_at"] }}
-        </div>
-    {% else %}
-        <p>No history available.</p>
-    {% endfor %}
-    <hr>
-    <h2>Record a Transfer</h2>
-    <form method="POST" action="/transfer/{{ product['id'] }}">
-    <p>
-        <input
-            type="text"
-            name="actor"
-            placeholder="Your role or name"
-            required
-            style="padding: 10px; width: 90%;"
-        >
-    </p>
-      
-      <p>
-    <select name="destination" required style="padding: 10px; width: 90%;">
-    <option value="">Select destination</option>
-    <option value="Wholesaler">Wholesaler</option>
-    <option value="Retailer">Retailer</option>
-    <option value="Consumer">Consumer</option>
-</select>
-</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<button type="submit" style="padding: 10px;">
-    Record Transfer
-</button>
+    <title>TrueCheck Product Verification</title>
 
-</form>
-{% else %}
-    <h1> Product Not Registered</h1>
-    <p>        This product ID was not found in the TrueCheck database.    </p>
-{% endif %}
-<br>
-<a href="/">    Back to TrueCheck</a>
-</body></html>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #222;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: 20px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            margin-bottom: 18px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        h1 {
+            color: #087a45;
+            text-align: center;
+        }
+
+        h2 {
+            color: #087a45;
+            font-size: 20px;
+        }
+
+        .verified {
+            background: #e5f7ed;
+            color: #087a45;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status {
+            background: #eef4ff;
+            padding: 13px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .history {
+            border-left: 4px solid #087a45;
+            padding: 12px 15px;
+            margin: 15px 0;
+            background: #f8faf9;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+
+        .not-verified {
+            background: #fff0f0;
+            color: #a00000;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .warning {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        a.button {
+            display: block;
+            text-align: center;
+            background: #087a45;
+            color: white;
+            padding: 13px;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>TrueCheck</h1>
+
+    {% if product %}
+
+        <div class="card">
+
+            <div class="verified">
+                ✓ PRODUCT REGISTERED IN TRUECHECK
+            </div>
+
+            <h2>Product Information</h2>
+
+            <p>
+                <span class="label">Product name:</span>
+                {{ product["name"] }}
+            </p>
+
+            <p>
+                <span class="label">Product ID:</span>
+                {{ product["id"] }}
+            </p>
+
+            <p>
+                <span class="label">Batch number:</span>
+                {{ product["batch"] or "Not provided" }}
+            </p>
+
+            <p class="status">
+                Current supply-chain status:
+                {{ product["status"] }}
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h2>Supply-Chain History</h2>
+
+            {% for event in events %}
+
+                <div class="history">
+
+                    <strong>{{ event["event"] }}</strong>
+
+                    <p>
+                        Business:
+                        {{ event["actor"] }}
+                    </p>
+
+                    <p>
+                        Time:
+                        {{ event["created_at"] }}
+                    </p>
+
+                </div>
+
+            {% else %}
+
+                <p>No supply-chain history is available yet.</p>
+
+            {% endfor %}
+
+        </div>
+
+        <div class="card">
+
+            <h2>Important Information</h2>
+
+            <p>
+                This product is registered in the TrueCheck
+                database. You can review its recorded
+                supply-chain history above.
+            </p>
+
+            <p class="warning">
+                Registration does not independently guarantee
+                that a physical product is genuine. Product
+                identifiers and QR codes can be copied.
+                Always check the packaging and buy from
+                trusted sellers.
+            </p>
+
+        </div>
+
+    {% else %}
+
+        <div class="card">
+
+            <div class="not-verified">
+                PRODUCT NOT REGISTERED
+            </div>
+
+            <p>
+                This product ID was not found in the
+                TrueCheck database.
+            </p>
+
+            <p>
+                This means the product is unverified by
+                TrueCheck. It does not by itself prove
+                that the product is counterfeit.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+    <a class="button" href="/">Back to TrueCheck</a>
+
+</div>
+
+</body>
+</html>
