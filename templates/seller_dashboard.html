@@ -1,1 +1,160 @@
+<!DOCTYPE html><html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrueCheck Seller Dashboard</title><style>
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 30px auto;
+        padding: 15px;
+        background: #f5f7fa;
+    }
 
+    .header, .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 18px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    h1 { color: #087a43; }
+
+    input, select, button {
+        width: 100%;
+        padding: 12px;
+        margin: 8px 0;
+        box-sizing: border-box;
+    }
+
+    button {
+        background: #087a43;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .secondary {
+        background: #333;
+    }
+
+    a { color: #087a43; }
+</style>
+
+</head><body><div class="header">
+    <h1>TrueCheck Seller Dashboard</h1><p>Welcome, {{ session.get("business_name", "Seller") }}</p>
+
+<p>Business role: {{ session.get("role", "") }}</p>
+
+<a href="/">Home</a> |
+<a href="/marketplace">View Marketplace</a> |
+<a href="/business/logout">Logout</a>
+
+</div><div class="card">
+    <h2>Business Contact Information</h2><form method="POST" action="/seller/profile">
+
+    <label>Phone Number</label>
+    <input
+        type="tel"
+        name="phone"
+        value="{{ business.get('phone') or '' }}"
+        placeholder="Enter business phone number"
+        required
+    >
+
+    <label>WhatsApp Number (optional)</label>
+    <input
+        type="tel"
+        name="whatsapp"
+        value="{{ business.get('whatsapp') or '' }}"
+        placeholder="Leave empty to use your phone number"
+    >
+
+    <button type="submit">Save Contact Details</button>
+
+</form>
+
+</div><div class="card">
+    <h2>List a Registered Product</h2><form method="POST" action="/seller/list-product">
+
+    <label>Select Product</label>
+
+    <select name="product_id" required>
+        <option value="">Choose a registered product</option>
+
+        {% for product in products %}
+            <option value="{{ product['id'] }}">
+                {{ product['name'] }} - {{ product['id'] }}
+            </option>
+        {% endfor %}
+
+    </select>
+
+    <label>Your Selling Price (₦)</label>
+
+    <input
+        type="number"
+        name="price"
+        min="0.01"
+        step="0.01"
+        placeholder="Enter selling price"
+        required
+    >
+
+    <button type="submit">Publish Product</button>
+
+</form>
+
+{% if not products %}
+    <p>No registered products are available for listing.</p>
+{% endif %}
+
+</div><div class="card">
+    <h2>My Marketplace Listings</h2>{% for listing in listings %}
+
+    <div style="border-bottom:1px solid #ddd; padding:12px 0;">
+
+        <h3>{{ listing['product_name'] }}</h3>
+
+        <p>Product ID: {{ listing['product_id'] }}</p>
+
+        <p>Price: ₦{{ listing['price'] }}</p>
+
+        <p>
+            Availability:
+            {% if listing['available'] %}
+                Available
+            {% else %}
+                Unavailable
+            {% endif %}
+        </p>
+
+        <form method="POST"
+              action="/seller/toggle-listing/{{ listing['id'] }}">
+
+            <button type="submit" class="secondary">
+                {% if listing['available'] %}
+                    Make Unavailable
+                {% else %}
+                    Make Available
+                {% endif %}
+            </button>
+
+        </form>
+
+    </div>
+
+{% else %}
+
+    <p>You have not published any products yet.</p>
+
+{% endfor %}
+
+</div><div class="card">
+    <h2>Customer Orders</h2><p>Orders placed by customers will appear here.</p>
+
+<a href="/seller/orders">Manage My Orders</a>
+
+</div></body>
+</html>
