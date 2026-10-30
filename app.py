@@ -686,6 +686,278 @@ def check_barcode():
         "Authenticity cannot be confirmed."
     ), 404
 
+# --------------------------------
+# SELLER DASHBOARD
+# --------------------------------
+
+@app.route("/seller/dashboard")
+def seller_dashboard():
+
+    if "business_id" not in session:
+        flash("Please log in to access your seller dashboard.")
+        return redirect(url_for("business_login"))
+
+    if session.get("role") not in [
+        "Manufacturer",
+        "Wholesaler",
+        "Retailer"
+    ]:
+        flash("Your account cannot access the seller dashboard.")
+        return redirect(url_for("home"))
+
+    business_id = session["business_id"]
+
+    connection = get_db()
+
+    try:
+        business = connection.execute(
+            """
+            SELECT *
+            FROM businesses
+            WHERE id = %s
+            """,
+            (business_id,)
+        ).fetchone()
+
+        products = connection.execute(
+            """
+            SELECT id, name, batch, status
+            FROM products
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
+        listings = connection.execute(
+            """
+            SELECT
+                retailer_listings.id,
+                retailer_listings.product_id,
+                retailer_listings.price,
+                retailer_listings.available,
+                products.name AS product_name
+            FROM retailer_listings
+            JOIN products
+                ON products.id = retailer_listings.product_id
+            WHERE retailer_listings.retailer_id = %s
+            ORDER BY retailer_listings.id DESC
+            """,
+            (business_id,)
+        ).fetchall()
+
+    finally:
+        connection.close()
+
+    return render_template(
+        "seller_dashboard.html",
+        business=business,
+        products=products,
+        listings=listings
+    )
+
+
+# --------------------------------
+# SAVE SELLER CONTACT DETAILS
+# --------------------------------
+
+@app.route("/seller/profile", methods=["POST"])
+def seller_profile():
+
+    if "business_id" not in session:
+        return redirect(url_for("business_login"))
+
+    phone = request.form.get("phone", "").strip()
+    whatsapp = request.form.get("whatsapp", "").strip()
+
+    if not phone:
+        flash("Please enter your business phone number.")
+        return redirect(url_for("seller_dashboard"))
+
+    connection = get_db()
+
+    try:
+        connection.execute(
+            """
+            UPDATE businesses
+            SET phone = %s,
+                whatsapp = %s
+            WHERE id = %s
+            """,
+            (
+                phone,
+                whatsapp or None,
+                session["business_id"]
+            )
+        )
+
+        connection.commit()
+
+        flash("Business contact details saved successfully.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Saving seller profile failed.")
+        flash("Could not save your contact details.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
+
+
+# --------------------------------
+# LIST A REGISTERED PRODUCT
+# --------------------------------
+
+@app.route("/seller/list-product", methods=["POST"])
+def seller_list_product():
+
+    if "business_id" not in session:
+        return redirect(url_for("business_login"))
+
+    if session.get("role") not in [
+        "Manufacturer",
+        "Wholesaler",
+        "Retailer"
+    ]:
+        flash("Your account cannot sell products.")
+        return redirect(url_for("home"))
+
+    product_id = request.form.get(
+        "product_id", ""
+    ).strip()
+
+    price_text = request.form.get(
+        "price", ""
+    ).strip()
+
+    try:
+        price = float(price_text)
+
+        if price <= 0:
+            raise ValueError()
+
+    except (ValueError, TypeError):
+        flash("Please enter a valid selling price.")
+        return redirect(url_for("seller_dashboard"))
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT id
+            FROM products
+            WHERE id = %s
+            """,
+            (product_id,)
+        ).fetchone()
+
+        if product is None:
+            flash("This product is not registered in TrueCheck.")
+            return redirect(url_for("seller_dashboard"))
+
+        connection.execute(
+            """
+            INSERT INTO retailer_listings
+            (
+                retailer_id,
+                product_id,
+                price,
+                available,
+                created_at
+            )
+            VALUES (%s, %s, %s, TRUE, %s)
+
+            ON CONFLICT (retailer_id, product_id)
+            DO UPDATE SET
+                price = EXCLUDED.price,
+                available = TRUE
+            """,
+            (
+                session["business_id"],
+                product_id,
+                price,
+                current_time()
+            )
+        )
+
+        connection.commit()
+
+        flash("Product successfully published on the marketplace.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Publishing product failed.")
+        flash("Could not publish this product.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
+
+
+# --------------------------------
+# MAKE LISTING AVAILABLE OR UNAVAILABLE
+# --------------------------------
+
+@app.route(
+    "/seller/toggle-listing/<int:listing_id>",
+    methods=["POST"]
+)
+def seller_toggle_listing(listing_id):
+
+    if "business_id" not in session:
+        return redirect(url_for("business_login"))
+
+    connection = get_db()
+
+    try:
+        listing = connection.execute(
+            """
+            SELECT id, available
+            FROM retailer_listings
+            WHERE id = %s
+              AND retailer_id = %s
+            """,
+            (
+                listing_id,
+                session["business_id"]
+            )
+        ).fetchone()
+
+        if listing is None:
+            flash("Listing not found.")
+            return redirect(url_for("seller_dashboard"))
+
+        new_status = not listing["available"]
+
+        connection.execute(
+            """
+            UPDATE retailer_listings
+            SET available = %s
+            WHERE id = %s
+              AND retailer_id = %s
+            """,
+            (
+                new_status,
+                listing_id,
+                session["business_id"]
+            )
+        )
+
+        connection.commit()
+
+        flash("Product listing availability updated.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Updating listing failed.")
+        flash("Could not update product availability.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
 
 # --------------------------------
 # INITIALIZE DATABASE
