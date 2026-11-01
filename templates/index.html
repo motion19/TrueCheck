@@ -1,18 +1,15 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html><html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrueCheck</title>
-</head>
+</head><body style="font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px;"><h1>TrueCheck</h1>
 
-<body style="font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px;">
+<h2>Register a Product</h2>
 
-    <h1>TrueCheck</h1>
+<form method="POST" action="/register" enctype="multipart/form-data">
 
-    <h2>Register a Product</h2>
-
-    <form method="POST" action="/register">
-
+    <p>
         <input
             type="text"
             name="name"
@@ -20,61 +17,78 @@
             required
             style="padding: 10px; width: 60%;"
         >
-<input
-    type="text"
-    name="batch"
-    placeholder="Batch number"
-    style="padding: 10px; width: 25%;"
->
+    </p>
+
+    <p>
         <input
-    type="text"
-    name="barcode"
-    placeholder="Product barcode"
-    style="padding: 10px; width: 25%;"
->
-
-        <button
-            type="submit"
-            style="padding: 10px;"
+            type="text"
+            name="batch"
+            placeholder="Batch number"
+            style="padding: 10px; width: 60%;"
         >
-            Register & Generate QR
-        </button>
+    </p>
 
-    </form>
+    <p>
+        <input
+            type="text"
+            name="barcode"
+            placeholder="Product barcode"
+            style="padding: 10px; width: 60%;"
+        >
+    </p>
 
-    <h2>Registered Products</h2>
+    <p>
+        <label for="product_image">Product Image:</label><br><br>
 
-    {% for product in products %}
+        <input
+            type="file"
+            name="product_image"
+            id="product_image"
+            accept="image/*"
+        >
+    </p>
 
-        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0;">
+    <button type="submit" style="padding: 10px;">
+        Register & Generate QR
+    </button>
 
-            <strong>{{ product["name"] }}</strong>
+</form>
 
+<h2>Registered Products</h2>
+
+{% for product in products %}
+
+    <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0;">
+
+        <strong>{{ product["name"] }}</strong>
+
+        {% if product.get("image_url") %}
             <p>
-                Product ID: {{ product["id"] }}
+                <img
+                    src="{{ product['image_url'] }}"
+                    alt="{{ product['name'] }}"
+                    style="max-width: 200px; height: auto;"
+                >
             </p>
+        {% endif %}
 
-            <p>
-                Status: {{ product["status"] }}
-            </p>
+        <p>Product ID: {{ product["id"] }}</p>
 
-            <a href="/qr/{{ product['id'] }}">
-                View QR Code
-            </a>
+        <p>Status: {{ product["status"] }}</p>
 
-            &nbsp; | &nbsp;
+        <a href="/qr/{{ product['id'] }}">View QR Code</a>
 
-            <a href="/verify/{{ product['id'] }}">
-                Verify
-            </a>
+        &nbsp; | &nbsp;
 
-        </div>
+        <a href="/verify/{{ product['id'] }}">Verify</a>
 
-    {% else %}
+    </div>
 
-        <p>No products registered yet.</p>
+{% else %}
 
-    {% endfor %}
+    <p>No products registered yet.</p>
+
+{% endfor %}
 
 </body>
 </html>
