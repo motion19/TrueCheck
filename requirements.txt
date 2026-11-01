@@ -2,4 +2,4 @@ Flask
 qrcode[pil]
 gunicorn
 psycopg[binary]
-
+cloudinary
