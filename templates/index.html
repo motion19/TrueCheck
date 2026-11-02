@@ -5,6 +5,13 @@
     <title>TrueCheck</title>
 </head><body style="font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px;"><h1>TrueCheck</h1>
 
+    {% with messages = get_flashed_messages() %}
+    {% for message in messages %}
+        <p style="color: red; font-weight: bold;">
+            {{ message }}
+        </p>
+    {% endfor %}
+{% endwith %}
 <h2>Register a Product</h2>
 
 <form method="POST" action="/register" enctype="multipart/form-data">
