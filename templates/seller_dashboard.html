@@ -1,4 +1,4 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html><html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TrueCheck Seller Dashboard</title><style>
@@ -44,14 +44,18 @@
 
 </head><body><div class="header">
     <h1>TrueCheck Seller Dashboard</h1><p>Welcome, {{ session.get("business_name", "Seller") }}</p>
-
 <p>Business role: {{ session.get("role", "") }}</p>
 
 <a href="/">Home</a> |
-<a href="/marketplace">View Marketplace</a> |
 <a href="/business/logout">Logout</a>
 
-</div><div class="card">
+</div>{% with messages = get_flashed_messages() %}
+{% for message in messages %}
+<p>{{ message }}</p>
+{% endfor %}
+{% endwith %}
+
+<div class="card">
     <h2>Business Contact Information</h2><form method="POST" action="/seller/profile">
 
     <label>Phone Number</label>
@@ -63,12 +67,12 @@
         required
     >
 
-    <label>WhatsApp Number (optional)</label>
+    <label>WhatsApp Number</label>
     <input
         type="tel"
         name="whatsapp"
         value="{{ business.get('whatsapp') or '' }}"
-        placeholder="Leave empty to use your phone number"
+        placeholder="Enter WhatsApp number"
     >
 
     <button type="submit">Save Contact Details</button>
@@ -76,7 +80,7 @@
 </form>
 
 </div><div class="card">
-    <h2>List a Registered Product</h2><form method="POST" action="/seller/list-product">
+    <h2>List a Registered Product</h2><form method="POST" action="/seller/listing">
 
     <label>Select Product</label>
 
@@ -88,7 +92,6 @@
                 {{ product['name'] }} - {{ product['id'] }}
             </option>
         {% endfor %}
-
     </select>
 
     <label>Your Selling Price (₦)</label>
@@ -115,7 +118,7 @@
 
     <div style="border-bottom:1px solid #ddd; padding:12px 0;">
 
-        <h3>{{ listing['product_name'] }}</h3>
+        <h3>{{ listing['name'] }}</h3>
 
         <p>Product ID: {{ listing['product_id'] }}</p>
 
@@ -130,17 +133,13 @@
             {% endif %}
         </p>
 
-        <form method="POST"
-              action="/seller/toggle-listing/{{ listing['id'] }}">
-
+        <form
+            method="POST"
+            action="/seller/listing/{{ listing['id'] }}/remove"
+        >
             <button type="submit" class="secondary">
-                {% if listing['available'] %}
-                    Make Unavailable
-                {% else %}
-                    Make Available
-                {% endif %}
+                Remove Listing
             </button>
-
         </form>
 
     </div>
@@ -152,9 +151,7 @@
 {% endfor %}
 
 </div><div class="card">
-    <h2>Customer Orders</h2><p>Orders placed by customers will appear here.</p>
-
-<a href="/seller/orders">Manage My Orders</a>
-
+    <h2>Customer Orders</h2>
+    <p>Orders placed by customers will appear here.</p>
 </div></body>
 </html>
