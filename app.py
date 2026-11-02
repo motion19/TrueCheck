@@ -801,6 +801,52 @@ def transfer_product(product_id):
 
     return redirect(url_for("verify_product", product_id=product_id))
 
+# --------------------------------
+# UPDATE BUSINESS CONTACT DETAILS
+# --------------------------------
+
+@app.route("/seller/profile", methods=["POST"])
+def update_business_profile():
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    phone = request.form.get("phone", "").strip()
+    whatsapp = request.form.get("whatsapp", "").strip()
+
+    if not phone:
+        flash("Please enter your business phone number.")
+        return redirect(url_for("seller_dashboard"))
+
+    connection = get_db()
+
+    try:
+        connection.execute(
+            """
+            UPDATE businesses
+            SET phone = %s, whatsapp = %s
+            WHERE id = %s
+            """,
+            (
+                phone,
+                whatsapp,
+                session["business_id"]
+            )
+        )
+
+        connection.commit()
+        flash("Business contact details saved successfully.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Contact update failed.")
+        flash("Could not save contact details.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
 
 # --------------------------------
 # SELLER DASHBOARD
