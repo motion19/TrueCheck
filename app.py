@@ -7,10 +7,12 @@ from flask import (
     session,
     flash
 )
+
 from werkzeug.security import (
     generate_password_hash,
     check_password_hash
 )
+
 import secrets
 import uuid
 import qrcode
@@ -20,6 +22,7 @@ import os
 import psycopg
 import cloudinary
 import cloudinary.uploader
+
 from psycopg.rows import dict_row
 from psycopg import IntegrityError
 from datetime import datetime, timezone
@@ -30,6 +33,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
 NETWORK_URL = "https://truecheck-nmr0.onrender.com"
+
 
 # --------------------------------
 # CLOUDINARY CONFIGURATION
@@ -112,7 +116,6 @@ def setup_database():
             ADD COLUMN IF NOT EXISTS barcode TEXT
         """)
 
-        # PRODUCT IMAGE URL
         connection.execute("""
             ALTER TABLE products
             ADD COLUMN IF NOT EXISTS image_url TEXT
@@ -274,7 +277,9 @@ def home():
 
 @app.route("/business/register", methods=["GET", "POST"])
 def business_register():
+
     if request.method == "POST":
+
         business_name = request.form.get(
             "business_name", ""
         ).strip()
@@ -284,7 +289,12 @@ def business_register():
         ).strip().lower()
 
         password = request.form.get("password", "")
+
         role = request.form.get("role", "").strip()
+
+        phone = request.form.get("phone", "").strip()
+
+        whatsapp = request.form.get("whatsapp", "").strip()
 
         allowed_roles = [
             "Manufacturer",
@@ -310,14 +320,24 @@ def business_register():
             connection.execute(
                 """
                 INSERT INTO businesses
-                (business_name, email, password_hash, role, created_at)
-                VALUES (%s, %s, %s, %s, %s)
+                (
+                    business_name,
+                    email,
+                    password_hash,
+                    role,
+                    phone,
+                    whatsapp,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     business_name,
                     email,
                     generate_password_hash(password),
                     role,
+                    phone,
+                    whatsapp,
                     current_time()
                 )
             )
@@ -333,10 +353,667 @@ def business_register():
             connection.close()
 
         flash("Business account created. Please log in.")
+
         return redirect(url_for("business_login"))
 
     return render_template("business_register.html")
 
 
 # --------------------------------
-#
+# BUSINESS LOGIN
+# --------------------------------
+
+@app.route("/business/login", methods=["GET", "POST"])
+def business_login():
+
+    if request.method == "POST":
+
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get("password", "")
+
+        connection = get_db()
+
+        try:
+            business = connection.execute(
+                """
+                SELECT *
+                FROM businesses
+                WHERE email = %s
+                """,
+                (email,)
+            ).fetchone()
+
+        finally:
+            connection.close()
+
+        if business and check_password_hash(
+            business["password_hash"],
+            password
+        ):
+
+            session.clear()
+
+            session["business_id"] = business["id"]
+            session["business_name"] = business["business_name"]
+            session["role"] = business["role"]
+
+            flash("Login successful.")
+
+            return redirect(url_for("seller_dashboard"))
+
+        flash("Invalid email or password.")
+
+        return redirect(url_for("business_login"))
+
+    return render_template("business_login.html")
+
+
+# --------------------------------
+# BUSINESS LOGOUT
+# --------------------------------
+
+@app.route("/business/logout")
+def business_logout():
+
+    session.clear()
+
+    flash("You have been logged out.")
+
+    return redirect(url_for("home"))
+
+
+# --------------------------------
+# PRODUCT REGISTRATION
+# --------------------------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    if session.get("role") != "Manufacturer":
+        flash("Only manufacturers can register products.")
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+
+        name = request.form.get("name", "").strip()
+
+        batch = request.form.get("batch", "").strip()
+
+        barcode = request.form.get("barcode", "").strip()
+
+        image_file = request.files.get("product_image")
+
+        if not name or not batch:
+            flash("Please enter the product name and batch number.")
+            return redirect(url_for("home"))
+
+        image_url = None
+
+        if image_file and image_file.filename:
+
+            if not image_file.content_type or not image_file.content_type.startswith("image/"):
+                flash("Please upload a valid image.")
+                return redirect(url_for("home"))
+
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    image_file,
+                    folder="truecheck/products",
+                    resource_type="image"
+                )
+
+                image_url = upload_result.get("secure_url")
+
+            except Exception:
+                app.logger.exception("Cloudinary image upload failed.")
+                flash("Image upload failed. Please try again.")
+                return redirect(url_for("home"))
+
+        product_id = (
+            "TC-NG-"
+            + datetime.now(timezone.utc).strftime("%Y%m%d")
+            + "-"
+            + uuid.uuid4().hex[:8].upper()
+        )
+
+        connection = get_db()
+
+        try:
+            connection.execute(
+                """
+                INSERT INTO products
+                (
+                    id,
+                    name,
+                    batch,
+                    barcode,
+                    status,
+                    image_url,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    product_id,
+                    name,
+                    batch,
+                    barcode,
+                    "With Manufacturer",
+                    image_url,
+                    current_time()
+                )
+            )
+
+            connection.execute(
+                """
+                INSERT INTO events
+                (product_id, event, actor, created_at)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    product_id,
+                    "Product registered",
+                    session.get("business_name", "Manufacturer"),
+                    current_time()
+                )
+            )
+
+            connection.commit()
+
+        except Exception:
+            connection.rollback()
+            app.logger.exception("Product registration failed.")
+            flash("Product registration failed.")
+            return redirect(url_for("home"))
+
+        finally:
+            connection.close()
+
+        return redirect(
+            url_for("show_qr", product_id=product_id)
+        )
+
+    return redirect(url_for("home"))
+
+
+# --------------------------------
+# SHOW PRODUCT QR CODE
+# --------------------------------
+
+@app.route("/qr/<product_id>")
+def show_qr(product_id):
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT *
+            FROM products
+            WHERE id = %s
+            """,
+            (product_id,)
+        ).fetchone()
+
+    finally:
+        connection.close()
+
+    if not product:
+        flash("Product not found.")
+        return redirect(url_for("home"))
+
+    verification_url = (
+        NETWORK_URL
+        + url_for(
+            "verify_product",
+            product_id=product_id
+        )
+    )
+
+    qr_image = qrcode.make(verification_url)
+
+    buffer = io.BytesIO()
+
+    qr_image.save(buffer, format="PNG")
+
+    qr = base64.b64encode(
+        buffer.getvalue()
+    ).decode("utf-8")
+
+    return render_template(
+        "qr.html",
+        product=product,
+        qr=qr,
+        verification_url=verification_url
+    )
+
+
+# --------------------------------
+# PRODUCT VERIFICATION
+# --------------------------------
+
+@app.route("/verify/<product_id>")
+def verify_product(product_id):
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT *
+            FROM products
+            WHERE id = %s
+            """,
+            (product_id,)
+        ).fetchone()
+
+        events = connection.execute(
+            """
+            SELECT *
+            FROM events
+            WHERE product_id = %s
+            ORDER BY created_at ASC, id ASC
+            """,
+            (product_id,)
+        ).fetchall()
+
+    finally:
+        connection.close()
+
+    if not product:
+        return render_template(
+            "verify.html",
+            product=None,
+            events=[]
+        )
+
+    return render_template(
+        "verify.html",
+        product=product,
+        events=events
+    )
+
+
+# --------------------------------
+# BARCODE VERIFICATION
+# --------------------------------
+
+@app.route("/barcode")
+def barcode_lookup():
+
+    barcode = request.args.get("code", "").strip()
+
+    if not barcode:
+        flash("Please enter a product barcode.")
+        return redirect(url_for("scanner"))
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT id
+            FROM products
+            WHERE barcode = %s
+            LIMIT 1
+            """,
+            (barcode,)
+        ).fetchone()
+
+    finally:
+        connection.close()
+
+    if not product:
+        return render_template(
+            "verify.html",
+            product=None,
+            events=[]
+        )
+
+    return redirect(
+        url_for(
+            "verify_product",
+            product_id=product["id"]
+        )
+    )
+
+
+# --------------------------------
+# BARCODE AND QR SCANNER
+# --------------------------------
+
+@app.route("/scanner")
+def scanner():
+
+    return render_template("scanner.html")
+
+
+# --------------------------------
+# SUPPLY-CHAIN TRANSFER
+# --------------------------------
+
+@app.route(
+    "/transfer/<product_id>",
+    methods=["POST"]
+)
+def transfer_product(product_id):
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    role = session.get("role")
+
+    allowed_destinations = {
+        "Manufacturer": "Wholesaler",
+        "Wholesaler": "Retailer"
+    }
+
+    destination = request.form.get(
+        "destination", ""
+    ).strip()
+
+    if role not in allowed_destinations:
+        flash("Your business role cannot transfer this product.")
+        return redirect(url_for("home"))
+
+    if destination != allowed_destinations[role]:
+        flash("Invalid transfer destination.")
+        return redirect(url_for("home"))
+
+    actor = request.form.get(
+        "actor",
+        session.get("business_name", "Business")
+    ).strip()
+
+    if not actor:
+        actor = session.get("business_name", "Business")
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT *
+            FROM products
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (product_id,)
+        ).fetchone()
+
+        if not product:
+            flash("Product not found.")
+            return redirect(url_for("home"))
+
+        expected_status = "With " + role
+
+        if product["status"] != expected_status:
+            flash("This product is not currently with your business role.")
+            return redirect(url_for("home"))
+
+        new_status = "With " + destination
+
+        connection.execute(
+            """
+            UPDATE products
+            SET status = %s
+            WHERE id = %s
+            """,
+            (
+                new_status,
+                product_id
+            )
+        )
+
+        connection.execute(
+            """
+            INSERT INTO events
+            (product_id, event, actor, created_at)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                product_id,
+                "Transferred to " + destination,
+                actor,
+                current_time()
+            )
+        )
+
+        connection.commit()
+
+        flash("Product transfer recorded successfully.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Product transfer failed.")
+        flash("Transfer failed. Please try again.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("verify_product", product_id=product_id))
+
+
+# --------------------------------
+# SELLER DASHBOARD
+# --------------------------------
+
+@app.route("/seller/dashboard")
+def seller_dashboard():
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    connection = get_db()
+
+    try:
+        business = connection.execute(
+            """
+            SELECT *
+            FROM businesses
+            WHERE id = %s
+            """,
+            (session["business_id"],)
+        ).fetchone()
+
+        products = connection.execute(
+            """
+            SELECT *
+            FROM products
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
+        listings = connection.execute(
+            """
+            SELECT
+                retailer_listings.*,
+                products.name,
+                products.image_url,
+                products.barcode
+            FROM retailer_listings
+            JOIN products
+                ON products.id = retailer_listings.product_id
+            WHERE retailer_listings.retailer_id = %s
+            ORDER BY retailer_listings.created_at DESC
+            """,
+            (session["business_id"],)
+        ).fetchall()
+
+    finally:
+        connection.close()
+
+    return render_template(
+        "seller_dashboard.html",
+        business=business,
+        products=products,
+        listings=listings
+    )
+
+
+# --------------------------------
+# CREATE RETAILER LISTING
+# --------------------------------
+
+@app.route(
+    "/seller/listing",
+    methods=["POST"]
+)
+def create_listing():
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    if session.get("role") != "Retailer":
+        flash("Only retailers can create product listings.")
+        return redirect(url_for("home"))
+
+    product_id = request.form.get(
+        "product_id", ""
+    ).strip()
+
+    price = request.form.get(
+        "price", ""
+    ).strip()
+
+    try:
+        price = float(price)
+
+        if price <= 0:
+            raise ValueError
+
+    except ValueError:
+        flash("Please enter a valid product price.")
+        return redirect(url_for("seller_dashboard"))
+
+    connection = get_db()
+
+    try:
+        product = connection.execute(
+            """
+            SELECT *
+            FROM products
+            WHERE id = %s
+            """,
+            (product_id,)
+        ).fetchone()
+
+        if not product:
+            flash("Product not found.")
+            return redirect(url_for("seller_dashboard"))
+
+        if product["status"] != "With Retailer":
+            flash("Only products received by retailers can be listed.")
+            return redirect(url_for("seller_dashboard"))
+
+        connection.execute(
+            """
+            INSERT INTO retailer_listings
+            (
+                retailer_id,
+                product_id,
+                price,
+                available,
+                created_at
+            )
+            VALUES (%s, %s, %s, TRUE, %s)
+            ON CONFLICT (retailer_id, product_id)
+            DO UPDATE SET
+                price = EXCLUDED.price,
+                available = TRUE
+            """,
+            (
+                session["business_id"],
+                product_id,
+                price,
+                current_time()
+            )
+        )
+
+        connection.commit()
+
+        flash("Product listing saved.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Listing creation failed.")
+        flash("Could not save product listing.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
+
+
+# --------------------------------
+# REMOVE RETAILER LISTING
+# --------------------------------
+
+@app.route(
+    "/seller/listing/<int:listing_id>/remove",
+    methods=["POST"]
+)
+def remove_listing(listing_id):
+
+    if "business_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("business_login"))
+
+    if session.get("role") != "Retailer":
+        flash("Only retailers can remove listings.")
+        return redirect(url_for("home"))
+
+    connection = get_db()
+
+    try:
+        connection.execute(
+            """
+            UPDATE retailer_listings
+            SET available = FALSE
+            WHERE id = %s
+            AND retailer_id = %s
+            """,
+            (
+                listing_id,
+                session["business_id"]
+            )
+        )
+
+        connection.commit()
+
+        flash("Listing removed.")
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Listing removal failed.")
+        flash("Could not remove listing.")
+
+    finally:
+        connection.close()
+
+    return redirect(url_for("seller_dashboard"))
+
+
+# --------------------------------
+# STARTUP DATABASE CHECK
+# --------------------------------
+
+setup_database()
+
+
+# --------------------------------
+# LOCAL DEVELOPMENT
+# --------------------------------
+
+if __name__ == "__main__":
+    app.run(debug=False)
